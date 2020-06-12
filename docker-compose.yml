@@ -5,13 +5,11 @@ services:
     build:
       context: .
       dockerfile: docker/python/Dockerfile
-    container_name: python-docker-template
+    container_name: kalman-filter
     environment:
       - TZ=Asia/Tokyo
     env_file:
       - ./docker/python/.env
-    ports:
-      - "8888:8888"
     volumes:
       - ./source:/usr/src/source
     working_dir: /usr/src/source
