@@ -35,7 +35,7 @@ class IterLeastSquares:
     Attributes:
         estimated_x (float): 最終的な推定値x.
         p (array_like, 2-D): 最終的な推定誤差共分散p.
-        x_list (array_like, 2-D): 角時刻における推定値xのリスト.
+        x_list (array_like, 2-D): 各時刻における推定値xのリスト.
     """
     def __init__(self, z, h, r, init_x, init_p):
         """
