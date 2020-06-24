@@ -45,10 +45,16 @@ class KalmanFilterSteadyState:
         self.estimated_p = None
 
     def __setitem__(self, key, value):
+        """メンバ変数を辞書形式でsetできるようにする.
+
+        Args:
+            key (str): メンバ変数の文字列.
+            value (str): 代入する値.
+        """
         self.__dict__[key] = value
 
     def run(self):
-        """計算"""
+        """推定値を計算する."""
         predicted_xi = None
         estimated_xi = self.init_x.reshape(-1, 1)
         predicted_pi = None
@@ -104,7 +110,15 @@ def output_multi_graphs(x, y_list, annotations, x_label, y_label, title, file_na
     plt.savefig(file_name)
 
 
-def output_with_grid_search(kalman_filter, key, grid_params, labels):
+def output_with_grid_search(kalman_filter, key, grid_params, annotations):
+    """パラメータをグリッドサーチして, xiごとに1つの図に出力.
+
+    Args:
+        kalman_filter (KalmanFilterSteadyState): kalman filterクラス.
+        key (str): グリッドサーチ対象の(kalman_filterクラスの)メンバ変数.
+        grid_params (list): グリッドサーチに使う値リスト.
+        annotations (list): grid_paramsごとにグラフに表示する注釈.
+    """
     k = kalman_filter.k
     x_stack = []
 
@@ -119,7 +133,7 @@ def output_with_grid_search(kalman_filter, key, grid_params, labels):
     x_stack = x_stack.transpose((2, 0, 1))  # x_stackの軸を変更. 軸のindexを(0, 1, 2)→(2, 0, 1)に並び替え.
 
     for i, xi_stack in enumerate(x_stack):
-        output_multi_graphs(x=k, y_list=xi_stack, x_label='k', y_label=f'x{i}', annotations=labels,
+        output_multi_graphs(x=k, y_list=xi_stack, x_label='k', y_label=f'x{i}', annotations=annotations,
                             title=f'kalman_filter_change_{key}',
                             file_name=f'graph/kalman_filter_change_{key}_graph_x{i}.png')
 
@@ -156,11 +170,12 @@ def main():
     kf = KalmanFilterSteadyState(k, z, h, r, q, init_x, init_p)
     kf.run()
     x = kf.estimated_x
-    print(f'推定値x（カルマンフィルター）: \n{x}\n')
     logger.info(f'Q: \n{q}\n')
     logger.info(f'init X: \n{init_x}\n')
     logger.info(f'init P: \n{init_p}\n')
-    logger.info(f'推定値x（カルマンフィルター）: \n{x}')
+    result = f'推定値x（カルマンフィルター）: \n{x}\n'
+    logger.info(result)
+    print(result)
 
     """
     ************
@@ -169,14 +184,14 @@ def main():
     """
     # 推定誤差共分散pの初期値を変えて, グラフを出力.
     key = 'init_p'
-    labels = [10**3, 10**0, 10**-3]
+    labels = [10**3, 10**2, 10**0, 10**-2, 10**-3]
     grid_params = [np.identity(3) * i for i in labels]
     default_kf = KalmanFilterSteadyState(k, z, h, r, q, init_x, init_p)
     output_with_grid_search(default_kf, key, grid_params, labels)
 
     # プラント雑音の共分散qを変えて, グラフを出力.
     key = 'q'
-    labels = [10**2, 10**1, 10**0]
+    labels = [10**4, 10**2, 10**0, 10**-2, 10**-4]
     grid_params = [np.ones(k.size) * i for i in labels]
     default_kf = KalmanFilterSteadyState(k, z, h, r, q, init_x, init_p)
     output_with_grid_search(default_kf, key, grid_params, labels)
