@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 import matplotlib.pyplot as plt
 from numpy.linalg import inv, multi_dot
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -15,37 +16,57 @@ class KalmanFilterSteadyState:
     """定常モデルのカルマンフィルター.
 
     Attributes:
+        k (array_like, 1-D): 時刻リスト.
+        z (array_like, 1-D): 観測値リスト.
+        h (array_like, 2-D): 変換行列.
+        r (array_like, 1-D): 観測雑音の共分散リスト.
+        q (array_like, 1-D): プラント雑音の共分散リスト.
+        init_x (array_like, 1-D): 推定値xの初期値.
+        init_p (array_like, 2-D): 推定誤差共分散pの初期値.
         estimated_x (float): 最終的な推定値x.
         estimated_x_list (array_like, 2-D): 各時刻における推定値xのリスト.
     """
-    def __init__(self, z, h, r, q, init_x, init_p):
-        """
+    def __init__(self, k, z, h, r, q, init_x, init_p):
+        """初期化.
+
         Args:
-            z (array_like, 1-D): 観測値リスト.
-            h (array_like, 2-D): 変換行列.
-            r (array_like, 1-D): 観測雑音の共分散リスト.
-            q (array_like, 1-D): プラント雑音の共分散リスト.
-            init_x (array_like, 1-D): 推定値xの初期値.
-            init_p (array_like, 2-D): 推定誤差共分散pの初期値.
+            Attributes参照.
         """
+        self.k = k
+        self.z = z
+        self.h = h
+        self.r = r
+        self.q = q
+        self.init_x = init_x
+        self.init_p = init_p
+
+        self.estimated_x_list = []
+        self.estimated_x = None
+        self.estimated_p = None
+
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+
+    def run(self):
+        """計算"""
         predicted_xi = None
-        estimated_xi = init_x.reshape(-1, 1)
+        estimated_xi = self.init_x.reshape(-1, 1)
         predicted_pi = None
-        estimated_pi = init_p
+        estimated_pi = self.init_p
 
         self.estimated_x_list = []
 
-        for i in range(z.size):
+        for i in range(self.z.size):
             # 予測アルゴリズム
-            qi = q[i]  # scalar
-            hi = h[i].reshape(1, -1)  # shape (1, 3)
+            qi = self.q[i]  # scalar
+            hi = self.h[i].reshape(1, -1)  # shape (1, 3)
             predicted_xi = estimated_xi  # shape (3, 1)
             predicted_pi = estimated_pi + qi  # shape (3, 3)
             predicted_zi = np.dot(hi, predicted_xi)  # shape (1, 1)
 
             # 推定アルゴリズム
-            ri = r[i]  # scalar
-            zi = z[i]  # scalar
+            ri = self.r[i]  # scalar
+            zi = self.z[i]  # scalar
             z_error = zi - predicted_zi  # shape (1, 1)
             si = multi_dot([hi, predicted_pi, hi.T]) + ri  # shape (1, 1)
             wi = multi_dot([predicted_pi, hi.T, inv(si)])  # shape (3, 1)
@@ -57,6 +78,50 @@ class KalmanFilterSteadyState:
         self.estimated_x_list = np.array(self.estimated_x_list)
         self.estimated_x = estimated_xi
         self.estimated_p = estimated_pi
+
+
+def output_multi_graphs(x, y_list, annotations, x_label, y_label, title, file_name):
+    """複数のグラフを1つの画像に出力する.
+
+    Args:
+        x (array_like, 1-D): x軸の値.
+        y_list (array_like, 2-D): 全グラフのy軸値のリスト. （1つ目のリストの要素は, 各グラフのy値）
+        annotations (array_like, 1-D): 全グラフの注釈リスト. （リストの要素は, 各グラフの注釈）
+        x_label (str): x軸のラベル.
+        y_label (str): y軸のラベル.
+        title (str): グラフのタイトル.
+        file_name (str): 出力画像のファイル名.
+    """
+    fig, ax = plt.subplots()
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+
+    for i, y in enumerate(y_list):
+        ax.plot(x, y, label=annotations[i])
+
+    ax.legend(loc=0)
+    plt.savefig(file_name)
+
+
+def output_with_grid_search(kalman_filter, key, grid_params, labels):
+    k = kalman_filter.k
+    x_stack = []
+
+    for param in grid_params:
+        kf = deepcopy(kalman_filter)
+        kf[key] = param
+        kf.run()
+        estimated_x_list = kf.estimated_x_list
+        x_stack.append(estimated_x_list)
+
+    x_stack = np.array(x_stack)
+    x_stack = x_stack.transpose((2, 0, 1))  # x_stackの軸を変更. 軸のindexを(0, 1, 2)→(2, 0, 1)に並び替え.
+
+    for i, xi_stack in enumerate(x_stack):
+        output_multi_graphs(x=k, y_list=xi_stack, x_label='k', y_label=f'x{i}', annotations=labels,
+                            title=f'kalman_filter_change_{key}',
+                            file_name=f'graph/kalman_filter_change_{key}_graph_x{i}.png')
 
 
 def main():
@@ -88,63 +153,33 @@ def main():
     q = np.zeros(k.size)
     init_x = np.zeros(3)
     init_p = np.identity(3) * 10**3
-    x = KalmanFilterSteadyState(z, h, r, q, init_x, init_p).estimated_x
+    kf = KalmanFilterSteadyState(k, z, h, r, q, init_x, init_p)
+    kf.run()
+    x = kf.estimated_x
     print(f'推定値x（カルマンフィルター）: \n{x}\n')
     logger.info(f'Q: \n{q}\n')
     logger.info(f'init X: \n{init_x}\n')
     logger.info(f'init P: \n{init_p}\n')
-    logger.info(f'推定値x（カルマンフィルター）: \n{x}\n')
+    logger.info(f'推定値x（カルマンフィルター）: \n{x}')
 
     """
     ************
     --- （2）---
     ************
     """
-    # 推定誤差共分散pの初期値とプラント雑音の共分散qを変えて，カルマンフィルターを適用
-    p_label_list = ['10**3', '10**0', '10**-3']
-    init_p_list = [np.identity(3) * 10**3, np.identity(3) * 10**0, np.identity(3) * 10**-3]
-    q_label_list = ['10**6', '10**3', '10**1']
-    q_list = [np.ones(k.size) * 10**6, np.ones(k.size) * 10**3, np.ones(k.size) * 10**1]
-    x_stack = []
+    # 推定誤差共分散pの初期値を変えて, グラフを出力.
+    key = 'init_p'
+    labels = [10**3, 10**0, 10**-3]
+    grid_params = [np.identity(3) * i for i in labels]
+    default_kf = KalmanFilterSteadyState(k, z, h, r, q, init_x, init_p)
+    output_with_grid_search(default_kf, key, grid_params, labels)
 
-    for init_p in init_p_list:
-        # 各時刻における推定値xのリストを取得
-        q = np.zeros(k.size)
-        estimated_x_list = KalmanFilterSteadyState(z, h, r, q, init_x, init_p).estimated_x_list
-        x_stack.append(estimated_x_list)
-
-    for i in range(3):
-        # グラフ作成
-        fig, ax = plt.subplots()
-        ax.set_xlabel('k')  # x軸ラベル
-        ax.set_ylabel(f'x{i}')  # y軸ラベル
-        ax.set_title('kalman_filter_change_p')
-
-        for j, x in enumerate(x_stack):
-            ax.plot(k, x[:, i], label=p_label_list[j])
-
-        ax.legend(loc=0)
-        plt.savefig(f'graph/kalman_filter_change_p_graph_x{i}.png')
-
-    x_stack = []
-    for q in q_list:
-        # 各時刻における推定値xのリストを取得
-        init_p = np.identity(3) * 10 ** 6
-        estimated_x_list = KalmanFilterSteadyState(z, h, r, q, init_x, init_p).estimated_x_list
-        x_stack.append(estimated_x_list)
-
-    for i in range(3):
-        # グラフ作成
-        fig, ax = plt.subplots()
-        ax.set_xlabel('k')  # x軸ラベル
-        ax.set_ylabel(f'x{i}')  # y軸ラベル
-        ax.set_title('kalman_filter_change_q')
-
-        for j, x in enumerate(x_stack):
-            ax.plot(k, x[:, i], label=q_label_list[j])
-
-        ax.legend(loc=0)
-        plt.savefig(f'graph/kalman_filter_change_q_graph_x{i}.png')
+    # プラント雑音の共分散qを変えて, グラフを出力.
+    key = 'q'
+    labels = [10**2, 10**1, 10**0]
+    grid_params = [np.ones(k.size) * i for i in labels]
+    default_kf = KalmanFilterSteadyState(k, z, h, r, q, init_x, init_p)
+    output_with_grid_search(default_kf, key, grid_params, labels)
 
 
 if __name__ == '__main__':
