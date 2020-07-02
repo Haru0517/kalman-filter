@@ -15,7 +15,7 @@ pip install -r requirements.txt
 
 Run:
 ```bash
-python least_squares.py
+python kalman_filter.py
 ```
 
 The output graph images are in `graph` folder.
