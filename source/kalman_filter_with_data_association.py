@@ -102,8 +102,8 @@ class KalmanFilterWithDataAssociation:
             n = self.init_x.size  # scalar
 
             # カイ２乗分布を取得
-            p = chi2.cdf(x=e, df=n)  # 横軸がεのときの下側確率
-            z_is_correct: bool = p <= 1 - self.alpha  # 観測値zが正しいかどうかの真理値
+            r = chi2.ppf(q=1-self.alpha, df=n)
+            z_is_correct: bool = e <= r  # 観測値zが正しいかどうかの真理値
 
             if z_is_correct:
                 # 推定アルゴリズム
@@ -133,18 +133,22 @@ def main():
     dataset_path = 'dataset.csv'
     dataset_df = load_dataset(dataset_path)
 
+    s = \
     """
     ************
     --- （1) --- 
     ************
     """
+    print_console_and_log(s)
+
     # 行列生成
     k, z, h, r = create_matrix_from_dataset(dataset_df)
 
     q = np.zeros(k.size)
     init_x = np.zeros(3)
     init_p = np.identity(3) * 10**3
-    kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p)
+    alpha = 0.1
+    kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p, alpha)
     kf.run()
     x = kf.estimated_x
     logger.info(f'Q: \n{q}\n')
@@ -153,31 +157,37 @@ def main():
     result = f'推定値x（通常）: \n{x}\n'
     print_console_and_log(result)
 
+    s = \
     """
     ************
     --- （2）---
     ************
     """
+    print_console_and_log(s)
+
     # k=0で異常値を与えて実験
     fixed_df = deepcopy(dataset_df)
     fixed_df.at[fixed_df['k'] == 0, 'z'] = -100  # k=0に-100を代入
     k, z, h, r = create_matrix_from_dataset(fixed_df)
-    kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p)
+    kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p, alpha)
     kf.run()
     x = kf.estimated_x
     result = f'推定値x（k=0で異常値）: \n{x}\n'
     print_console_and_log(result)
 
+    s = \
     """
     ************
     --- （3）---
     ************
     """
+    print_console_and_log(s)
+
     # k=-13で異常値を与えて実験
     fixed_df = deepcopy(dataset_df)
     fixed_df.at[fixed_df['k'] == -13, 'z'] = -100  # k=-13に-100を代入
     k, z, h, r = create_matrix_from_dataset(fixed_df)
-    kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p)
+    kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p, alpha)
     kf.run()
     x = kf.estimated_x
     result = f'推定値x（k=-13で異常値）: \n{x}\n'
