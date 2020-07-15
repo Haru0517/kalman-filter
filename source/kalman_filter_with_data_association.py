@@ -104,7 +104,7 @@ class KalmanFilterWithDataAssociation:
                 estimated_pi = predicted_pi - multi_dot([wi, si, wi.T])  # shape (3, 3)
 
             else:
-                print_console_and_log(f'異常値を検出: k={self.k[i]}, z={zi}, ε={e}')
+                print_console_and_log(f'- 異常値を検出: k={self.k[i]:3}, z={zi:8.4f}, ε={e[0,0]:.4f}')
 
             self.estimated_x_list.append(estimated_xi.T[0])
 
@@ -138,7 +138,7 @@ def main():
 
     q = np.zeros(k.size)
     init_x = np.zeros(3)
-    init_p = np.identity(3) * 10**3
+    init_p = np.identity(3) * 10**6
     alpha = 0.1
     kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p, alpha)
     kf.run()
@@ -159,12 +159,12 @@ def main():
 
     # k=0で異常値を与えて実験
     fixed_df = deepcopy(dataset_df)
-    fixed_df.at[fixed_df['k'] == 0, 'z'] = -100  # k=0に-100を代入
+    fixed_df.at[fixed_df['k'] == 0, 'z'] = 100  # k=0に100を代入
     k, z, h, r = create_matrix_from_dataset(fixed_df)
     kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p, alpha)
     kf.run()
     x = kf.estimated_x
-    result = f'推定値x（k=0で異常値）: \n{x}\n'
+    result = f'\n推定値x（k=0で異常値）: \n{x}\n'
     print_console_and_log(result)
 
     s = \
@@ -177,12 +177,12 @@ def main():
 
     # k=-13で異常値を与えて実験
     fixed_df = deepcopy(dataset_df)
-    fixed_df.at[fixed_df['k'] == -13, 'z'] = -100  # k=-13に-100を代入
+    fixed_df.at[fixed_df['k'] == -13, 'z'] = 100  # k=-13に100を代入
     k, z, h, r = create_matrix_from_dataset(fixed_df)
     kf = KalmanFilterWithDataAssociation(k, z, h, r, q, init_x, init_p, alpha)
     kf.run()
     x = kf.estimated_x
-    result = f'推定値x（k=-13で異常値）: \n{x}\n'
+    result = f'\n推定値x（k=-13で異常値）: \n{x}\n'
     print_console_and_log(result)
 
 
