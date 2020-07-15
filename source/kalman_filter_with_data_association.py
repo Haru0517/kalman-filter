@@ -65,14 +65,6 @@ class KalmanFilterWithDataAssociation:
         self.estimated_x = None
         self.estimated_p = None
 
-    def __setitem__(self, key, value):
-        """メンバ変数を辞書形式でsetできるようにする.
-
-        Args:
-            key (str): メンバ変数の文字列.
-            value (str): 代入する値.
-        """
-        self.__dict__[key] = value
 
     def run(self):
         """推定値を計算する."""
