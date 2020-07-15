@@ -43,6 +43,7 @@ class KalmanFilterWithDataAssociation:
         q (array_like, 1-D): プラント雑音の共分散リスト.
         init_x (array_like, 1-D): 推定値xの初期値.
         init_p (array_like, 2-D): 推定誤差共分散pの初期値.
+        alpha (float): カイ２乗検定の危険率.
         estimated_x (float): 最終的な推定値x.
         estimated_x_list (array_like, 2-D): 各時刻における推定値xのリスト.
     """
